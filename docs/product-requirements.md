@@ -14,7 +14,7 @@
 開発者がターミナルから離れることなく、効率的にタスクを管理できるCLIツールを提供する。
 GUIのタスク管理ツールとターミナルを頻繁に切り替えることによる集中力の断絶をなくし、開発作業とタスク管理をシームレスにつなぐ。
 Gitブランチとタスクを自動紐付けすることで、「どのタスクのために今どのブランチで作業しているか」を常に明確にし、手動管理の手間を排除する。
-JiraやAsanaのような重厚なツールではなく、開発者が本当に必要な機能だけを提供し、1分で使い始められるシンプルさを目指す。
+JiraやAsanaのような重厚なツールではなく、開発者が本当に必要な機能だけを提供し、インストールから5分以内に使い始められるシンプルさを目指す。
 
 ### 目的
 - コンテキストスイッチ(GUI↔ターミナルの切り替え)を排除し、開発者の集中力を維持する
@@ -52,7 +52,7 @@ JiraやAsanaのような重厚なツールではなく、開発者が本当に�
 ### セカンダリーKPI
 - **導入率**: 開発者10人に紹介して3人以上が1週間継続使用
 - **満足度**: Net Promoter Score (NPS) 30以上
-- **時間削減**: タスク管理にかかる時間が使用前比で50%削減（ユーザーインタビューで測定）
+- **時間削減**: タスク管理にかかる時間が使用前比で50%削減（リリース後3ヶ月時点で10名以上を対象にユーザーインタビューを実施し測定。基準値は「1日あたりのGUI↔ターミナル切り替え回数」と「タスクステータス更新にかかる時間」で計測）
 
 ---
 
@@ -91,7 +91,7 @@ JiraやAsanaのような重厚なツールではなく、開発者が本当に�
 
 ---
 
-#### 3. GitブランチとのP自動連携
+#### 3. Gitブランチとの自動連携
 
 **ユーザーストーリー**:
 開発者として、タスクとGitブランチを明確に紐付けて管理するために、タスク開始時に自動でブランチを作成・切り替えできる機能が欲しい
@@ -123,28 +123,27 @@ JiraやAsanaのような重厚なツールではなく、開発者が本当に�
 ### CLIインターフェース
 
 ```bash
-# タスクの基本操作
+# タスクの基本操作(MVP)
 task add "ユーザー認証機能の実装"
 task add "緊急バグ修正" --priority high --due 2025-01-20
 task list
 task list --status in_progress
 task show 1
-task done 1
-task delete 1
-
-# Gitブランチ連携
 task start 1
 # → 自動で feature/task-1-user-authentication ブランチを作成・切り替え
+task done 1
+task archive 1
+task delete 1
 
-# GitHub Issues連携
+# GitHub Issues連携(P1)
 task sync
 task import --github
 
-# 検索・絞り込み
+# 検索・絞り込み(P1)
 task search "認証"
-task list --sort priority
+task list --sort priority  # 優先度順ソート(昇順: low→high)
 
-# チーム機能(Post-MVP)
+# チーム機能(P2)
 task list --team
 task assign 1 @alice
 ```
@@ -157,6 +156,11 @@ task assign 1 @alice
 
 `task sync` でローカルタスクとGitHub Issuesを同期し、`task import --github` でIssuesからタスクをインポートできる。Personal Access Tokenで認証し、GitHub REST API v3を使用する。
 
+**最低限の受け入れ条件**（詳細はP1フェーズ設計時に定義）:
+- [ ] `TASKCLI_GITHUB_TOKEN` 環境変数が設定済みの場合、`task sync` が実行できる
+- [ ] `task import --github` でGitHub Issuesをローカルタスクに取り込める
+- [ ] 同期失敗時（認証エラー・ネットワークエラー）にわかりやすいエラーメッセージを表示する
+
 **優先度**: P1(重要)
 
 ---
@@ -164,6 +168,10 @@ task assign 1 @alice
 #### 6. タスク完了時の自動処理
 
 `task done <id>` 実行時に、ブランチをmainにマージ・リモートにプッシュ・GitHub PRの自動作成をオプションで実行できる。
+
+**最低限の受け入れ条件**（詳細はP1フェーズ設計時に定義）:
+- [ ] `task done <id> --create-pr` でGitHub PRを自動作成できる
+- [ ] PR作成失敗時はタスクのステータス変更のみ行い、エラーを表示する
 
 **優先度**: P1(重要)
 
@@ -220,9 +228,10 @@ task assign 1 @alice
 ## 非機能要件
 
 ### パフォーマンス
-- コマンド実行時間: 100ms以内(平均的なPC環境で)
-- タスク一覧表示: 1000件まで1秒以内
+- コマンド実行時間: 100ms以内（測定環境: CPU Core i5相当・メモリ8GB・SSD）
+- タスク一覧表示: 1000件まで1秒以内（同環境）
 - GitHub API連携コマンド: 3秒以内(ネットワーク遅延除く)
+- 詳細な測定方法・環境定義は `docs/architecture.md` のパフォーマンス要件を参照
 
 ### ユーザビリティ
 - 新規ユーザーが `--help` を読んで5分以内に基本操作(add/list/start/done)を習得できる
@@ -244,7 +253,7 @@ task assign 1 @alice
 
 ### クロスプラットフォーム
 - macOS・Linux・Windows(Git Bash/WSL)で動作すること
-- Node.js v18以降をサポート
+- Node.js v18以上をサポート（推奨: v24.x LTS）
 
 ---
 
