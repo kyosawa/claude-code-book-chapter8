@@ -42,6 +42,9 @@
 │   CLIレイヤー (src/cli/)                      │
 │   ← ユーザー入力の受付・バリデーション・表示     │
 ├─────────────────────────────────────────────┤
+│   バリデーター (src/validators/)              │
+│   ← 入力値の検証(CLIレイヤーから呼び出し)      │
+├─────────────────────────────────────────────┤
 │   サービスレイヤー (src/services/)            │
 │   ← ビジネスロジック・外部サービス連携          │
 ├─────────────────────────────────────────────┤
@@ -99,6 +102,8 @@ taskcli/
 │   │   ├── TaskManager.ts        # タスクCRUDビジネスロジック
 │   │   ├── GitManager.ts         # Gitブランチ操作
 │   │   └── GitHubClient.ts       # GitHub API連携(P1)
+│   ├── validators/
+│   │   └── taskValidators.ts     # タスク入力バリデーション関数群
 │   ├── storage/
 │   │   ├── FileStorage.ts        # JSONファイル永続化
 │   │   └── BackupManager.ts      # バックアップ管理
@@ -182,7 +187,7 @@ cp .task/backup/tasks-20260201-100000.json .task/tasks.json
 ### データ保護
 
 - **暗号化**: データの暗号化は行わない(ローカルファイルシステムの権限制御に依存)
-- **アクセス制御**: `.task/` ディレクトリは `700`、`tasks.json` / `config.json` は `600` で作成
+- **アクセス制御**: `.task/` ディレクトリは `700`、`tasks.json` / `config.json` は `600` で作成。`backup/` ディレクトリは `700`、バックアップファイルは `600` で作成
 - **機密情報管理**: GitHub Personal Access Tokenは環境変数 `TASKCLI_GITHUB_TOKEN` から取得。`config.json` への平文保存が試みられた場合は警告を表示
 
 ### 入力検証
@@ -222,6 +227,7 @@ console.error(error.stack);  // スタックトレースは開発時のみ表示
 - **ストレージ抽象化**: `IStorage` インターフェースを定義し、JSON→SQLiteの差し替えを上位レイヤーへの影響なく実現
 
 ```typescript
+// src/types/index.ts に定義
 // ストレージ抽象化インターフェース
 interface IStorage {
   readTasks(): Promise<Task[]>;
@@ -240,7 +246,7 @@ interface IStorage {
 - **フレームワーク**: Jest + ts-jest
 - **対象**: TaskManager(ビジネスロジック)、GitManager(ブランチ名生成)、FileStorage(ファイルI/O)、Formatter(出力フォーマット)、バリデーション関数
 - **モック方針**: FileStorageとGitManagerはモックを使用。外部依存(ファイルシステム、Git、GitHub API)を分離
-- **カバレッジ目標**: 80%以上(サービスレイヤーは100%目標)
+- **カバレッジ目標**: 80%以上(サービスレイヤーは90%以上目標、バリデーターは100%目標)
 
 ### 統合テスト
 
@@ -262,14 +268,14 @@ interface IStorage {
 ### 環境要件
 
 - **OS**: macOS 12以上、Ubuntu 20.04以上、Windows 10以上(Git Bash/WSL環境)
-- **Node.js**: v18以上(LTS版を推奨)
+- **Node.js**: v18以上(最低要件) / v24.11.0(推奨・開発環境標準)
 - **Git**: v2.30以上(ブランチ連携機能使用時)
 - **最小メモリ**: 512MB(Node.jsランタイム込み)
 - **必要ディスク容量**: インストール50MB以下、データ領域は別途
 
 ### パフォーマンス制約
 
-- JSON読み込みはメインスレッド上で実行されるため、10,000件超ではコマンド実行時間が目標値を超過する可能性がある
+- JSON読み込みはメインスレッド上で実行されるため、10,000件まではパフォーマンス目標(5秒以内)の範囲内。10,000件超ではコマンド実行時間が目標値を超過する可能性があり、SQLiteへの移行を推奨する
 - GitHub API連携はレート制限(認証済みで1時間5,000リクエスト)の影響を受ける
 
 ### セキュリティ制約
