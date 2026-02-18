@@ -6,6 +6,7 @@
 graph TB
     User[ユーザー]
     CLI[CLIレイヤー<br/>Commander.js]
+    Validators[Validators<br/>バリデーション]
     TaskManager[TaskManager<br/>タスク管理サービス]
     GitManager[GitManager<br/>Git連携サービス]
     GitHubClient[GitHubClient<br/>GitHub API連携]
@@ -16,6 +17,7 @@ graph TB
     GitHub[(GitHub API)]
 
     User --> CLI
+    CLI --> Validators
     CLI --> TaskManager
     CLI --> GitManager
     TaskManager --> FileStorage
@@ -34,7 +36,7 @@ graph TB
 | 分類 | 技術 | 選定理由 |
 |------|------|----------|
 | 言語 | TypeScript 5.x | 型安全性による開発効率とバグ防止 |
-| ランタイム | Node.js v18以上 | クロスプラットフォーム対応、エコシステムの豊富さ |
+| ランタイム | Node.js v18以上(最低要件) / v24.11.0(推奨・開発環境) | クロスプラットフォーム対応、エコシステムの豊富さ |
 | CLIフレームワーク | Commander.js | 学習コストが低く、機能が十分。最もシンプルな選択肢 |
 | Git連携 | simple-git | Node.jsからGit操作を行う最標準的なライブラリ |
 | テスト | Jest | TypeScript対応、豊富なmock機能 |
@@ -42,6 +44,7 @@ graph TB
 | データ保存(将来) | SQLite(better-sqlite3) | タスク増加時の検索性能向上のために移行予定 |
 | GitHub API | @octokit/rest | GitHub公式クライアント、型定義が充実 |
 | ターミナルUI | chalk + cli-table3 | カラーリングと表形式表示 |
+| 確認プロンプト | inquirer | 削除・完了など破壊的操作前の y/N 確認ダイアログ |
 
 ---
 
@@ -105,6 +108,7 @@ erDiagram
         string version
         int nextId
         string defaultBranchPrefix
+        string githubToken
     }
 ```
 
@@ -135,6 +139,7 @@ type CommandHandler = (args: string[], options: OptionValues) => Promise<void>;
 
 **依存関係**:
 - TaskManager
+- Validators(入力バリデーション)
 - Formatter(表示フォーマット)
 
 ---
@@ -153,6 +158,7 @@ class TaskManager {
   createTask(data: CreateTaskInput): Promise<Task>;
   listTasks(filter?: TaskFilter): Promise<Task[]>;
   getTask(id: string): Promise<Task>;
+  updateTask(id: string, data: UpdateTaskInput): Promise<Task>; // タイトル・説明・優先度・期限の更新
   startTask(id: string): Promise<Task>;        // status → in_progress & ブランチ作成
   completeTask(id: string): Promise<Task>;     // status → completed
   archiveTask(id: string): Promise<Task>;      // status → archived
@@ -162,6 +168,13 @@ class TaskManager {
 
 interface CreateTaskInput {
   title: string;
+  description?: string;
+  priority?: TaskPriority;
+  dueDate?: string;
+}
+
+interface UpdateTaskInput {
+  title?: string;
   description?: string;
   priority?: TaskPriority;
   dueDate?: string;
@@ -211,13 +224,18 @@ class GitManager {
 - GitHub Issues の取得・作成・更新
 - Personal Access Tokenによる認証
 
+**同期仕様**:
+- **同期方向**: GitHub Issue → ローカルタスク（一方向。ローカル変更が優先）
+- **重複処理**: `Task` エンティティに `githubIssueNumber?: number` フィールドを持ち、同じ Issue 番号のタスクが既に存在する場合はスキップ
+- **ID マッピング**: GitHub Issue 番号とローカルタスク ID は独立して管理（Issue #10 が必ずしもタスク ID 10 になるわけではない）
+
 **インターフェース**:
 ```typescript
 class GitHubClient {
   constructor(token: string);
   listIssues(owner: string, repo: string): Promise<GitHubIssue[]>;
-  importIssueAsTask(issue: GitHubIssue): Promise<Task>;
-  syncTask(task: Task): Promise<void>;
+  importIssueAsTask(issue: GitHubIssue): Promise<Task>;  // 重複時はスキップしてnullを返す
+  syncTask(task: Task): Promise<void>;                    // ローカル→GitHub Issue へのステータス反映
 }
 ```
 
@@ -400,7 +418,7 @@ stateDiagram-v2
     in_progress --> completed : task done
     completed --> archived : task archive
     open --> archived : task archive
-    in_progress --> open : task reopen (将来機能)
+    in_progress --> open : task reopen (Post-MVP・P1フェーズで実装予定)
     archived --> [*]
     open --> [*] : task delete
     in_progress --> [*] : task delete(確認あり)
@@ -420,6 +438,8 @@ stateDiagram-v2
 | Title | タイトル | 最大40文字(超過時は`...`で省略) |
 | Branch | 紐付きブランチ | なし時は `-` |
 | Due | 期限 | `YYYY-MM-DD` / `(あとN日)` |
+
+**デフォルトソート**: ID 昇順（`--sort` オプション未指定時）
 
 **表示例**:
 ```
@@ -526,7 +546,7 @@ function generateBranchName(task: Task, prefix: string): string {
 ## パフォーマンス最適化
 
 - **遅延読み込み**: タスクデータはコマンド実行時にのみ読み込む(起動時の事前読み込みなし)
-- **同期書き込み**: データ破損防止のため、書き込みは非同期でも排他制御を実施
+- **直列書き込み**: データ破損防止のため、書き込みは Promise チェーンで直列化し同時書き込みを防止する（ロックファイルは使用しない）
 - **ファイルキャッシュ**: 同一コマンド実行中の複数回読み込みをメモリキャッシュで回避
 - **出力バッファリング**: 大量タスク表示時はバッファリングして一括出力
 
@@ -591,3 +611,12 @@ enum ExitCode {
 
 - 実際のCLIコマンドを実行し、標準出力と `.task/tasks.json` の内容を検証
 - Git初期化済みの一時ディレクトリでのブランチ作成・切り替えを検証
+
+### カバレッジ目標
+
+| 対象 | 目標 |
+|------|------|
+| 全体 | 80%以上 |
+| `src/services/`（TaskManager 等） | 90%以上（ビジネスロジックの中核） |
+| `src/validators/` | 100%（境界値を全てカバー） |
+| `src/cli/` | 60%以上（表示ロジックは E2E で補完） |
