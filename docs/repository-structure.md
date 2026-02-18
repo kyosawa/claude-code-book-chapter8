@@ -15,6 +15,7 @@ taskcli/
 │   │       ├── start.ts
 │   │       ├── done.ts
 │   │       ├── delete.ts
+│   │       ├── archive.ts
 │   │       └── search.ts
 │   ├── services/                 # サービスレイヤー(ビジネスロジック)
 │   │   ├── TaskManager.ts        # タスクCRUD・ステータス管理
@@ -87,11 +88,11 @@ taskcli/
 **配置ファイル**:
 - `index.ts`: Commander.jsの初期化、サブコマンドの登録、CLIの起動
 - `Formatter.ts`: テーブル形式表示とカラーリングを担当するクラス
-- `commands/*.ts`: 各サブコマンド(`add` / `list` / `show` / `start` / `done` / `delete` / `search`)のハンドラ関数
+- `commands/*.ts`: 各サブコマンド(`add` / `list` / `show` / `start` / `done` / `delete` / `archive` / `search`)のハンドラ関数
 
 **命名規則**:
 - クラスファイル: PascalCase（例: `Formatter.ts`）
-- コマンドハンドラ: コマンド名と一致するkebab-caseまたはcamelCase（例: `add.ts`, `list.ts`）
+- コマンドハンドラ: コマンド名と一致するlowerCase単語（例: `add.ts`, `list.ts`, `archive.ts`）。複数単語になる場合はkebab-caseを使用
 
 **依存関係**:
 - 依存可能: `src/services/`、`src/validators/`、`src/types/`
@@ -183,6 +184,7 @@ src/storage/
 
 **配置ファイル**:
 - `index.ts`: `Task`、`Config`、`TaskStatus`、`TaskPriority`、`IStorage` 等の型・インターフェース定義
+  ※ `Task` には `githubIssueNumber?: number` フィールドを含む（GitHub Issues連携のP1機能で使用）
 
 **命名規則**:
 - 型定義ファイル: `index.ts` に集約（プロジェクト規模が小さいため）
@@ -204,7 +206,8 @@ src/storage/
 tests/unit/
 ├── services/
 │   ├── TaskManager.test.ts       # ビジネスロジックのテスト(FileStorage/GitManagerをモック)
-│   └── GitManager.test.ts        # ブランチ名生成ロジックのテスト(simple-gitをモック)
+│   ├── GitManager.test.ts        # ブランチ名生成ロジックのテスト(simple-gitをモック)
+│   └── GitHubClient.test.ts      # GitHub API連携のテスト(@octokit/restをモック、P1機能)
 ├── storage/
 │   ├── FileStorage.test.ts       # ファイルI/Oのテスト(fs/promisesをモック)
 │   └── BackupManager.test.ts     # バックアップ生成・世代管理のテスト
@@ -257,6 +260,16 @@ tests/e2e/
 └── backup/               # 自動バックアップ(最新5件を保持)
     └── tasks-YYYYMMDD-HHmmss.json
 ```
+
+**ファイルパーミッション要件**:
+
+| パス | パーミッション | 説明 |
+|------|-------------|------|
+| `.task/` | `700` | オーナーのみアクセス可能 |
+| `.task/tasks.json` | `600` | オーナーのみ読み書き可能 |
+| `.task/config.json` | `600` | オーナーのみ読み書き可能 |
+| `.task/backup/` | `700` | オーナーのみアクセス可能 |
+| `.task/backup/*.json` | `600` | オーナーのみ読み書き可能 |
 
 ---
 
