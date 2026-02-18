@@ -244,6 +244,7 @@ main (本番リリース済みの安定版)
 **運用ルール**:
 - `main` / `develop` への直接コミット禁止。必ずPRを経由する
 - `feature/*` / `fix/*` は `develop` から分岐し、PRで `develop` へマージ
+- `refactor/*` / `docs/*` も `develop` から分岐し、PRで `develop` へマージ
 - `develop` → `main` へのマージはリリース時のみ
 - マージ方針: `feature` → `develop` は squash merge、`develop` → `main` は merge commit
 
@@ -254,8 +255,10 @@ main (本番リリース済みの安定版)
 <type>(<scope>): <subject>
 
 <body>
+※ 変更の背景・理由を記述。72文字で折り返す。省略可。
 
 <footer>
+※ 関連Issue番号（Closes #番号）や破壊的変更（BREAKING CHANGE: 説明）を記述。省略可。
 ```
 
 **Type一覧**:
@@ -422,10 +425,12 @@ it('タイトルが空の場合、ValidationError をスローする', ...);
 ### モックの使用方針
 
 - **外部依存（ファイルシステム・Git・GitHub API）**: モック化必須
+  - GitHub API (`@octokit/rest`) のモックテストは `tests/unit/services/GitHubClient.test.ts` を参照
 - **ビジネスロジック（サービスクラス）**: 実際の実装を使用
 
 ```typescript
-// ✅ 良い例: IStorage インターフェースに基づくモック
+// ✅ 良い例: IStorage インターフェースに基づくモック (src/types/index.ts に定義)
+import type { IStorage } from '../../types';
 function createMockStorage(initialTasks: Task[]): IStorage {
   const tasks = [...initialTasks];
   return {
@@ -474,7 +479,7 @@ function createMockStorage(initialTasks: Task[]): IStorage {
 **優先度を明示する**:
 ```markdown
 [必須] セキュリティ: ブランチ名の生成でサニタイズが不足しています。
-`/[^\w-/]/g` で記号を除去してください。
+`functional-design.md` の generateBranchName ロジックに従い、`/[^\w\s-]/g` で特殊文字を除去した後、`/[\s_]+/g` でハイフン変換を行ってください。
 
 [推奨] 可読性: この条件式は複雑なので、変数に抽出することを検討してください:
 ```typescript
@@ -498,7 +503,11 @@ if (isCompletedOrArchived) { ... }
 
 ## 開発環境セットアップ
 
-### 必要なツール
+### 推奨: devcontainerを使用したセットアップ
+
+本プロジェクトはdevcontainerをサポートしています。VS Code + Dev Containers拡張機能を使用する場合、以下の手動セットアップ手順は不要です。VS Codeでリポジトリを開き「Reopen in Container」を選択してください。Node.js v24.11.0が含まれた開発環境が自動的に構築されます。
+
+### 必要なツール（手動セットアップの場合）
 
 | ツール | バージョン | インストール方法 |
 |--------|-----------|-----------------|
@@ -630,6 +639,7 @@ jobs:
 - [ ] ユーザー入力が `src/validators/` でバリデートされている
 - [ ] ブランチ名生成時に記号のサニタイズが実装されている
 - [ ] 機密情報がハードコードされていない
+- [ ] `.task/` ディレクトリが `700`、データファイル（`tasks.json` / `config.json` / `backup/*.json`）が `600` で作成されている
 
 ### テスト
 - [ ] ユニットテストが追加されている

@@ -245,7 +245,7 @@ task assign 1 @alice
 
 ### セキュリティ
 - GitHub Personal Access Tokenは環境変数(`TASKCLI_GITHUB_TOKEN`)で管理し、設定ファイルに平文保存しない
-- `.task/` ディレクトリのファイルパーミッションは600(オーナーのみ読み書き)
+- `.task/` ディレクトリは `700`（実行権限が必要）、各データファイル（`tasks.json` / `config.json` / `backup/*.json`）は `600`（オーナーのみ読み書き）で作成する
 
 ### スケーラビリティ
 - MVPはJSONファイルでデータ管理し、タスク数が増加した場合にSQLiteへ移行できる設計にする
