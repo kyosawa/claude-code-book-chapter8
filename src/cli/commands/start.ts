@@ -3,7 +3,7 @@ import { TaskManager } from '../../services/TaskManager.js';
 import { FileStorage } from '../../storage/FileStorage.js';
 import { Formatter } from '../Formatter.js';
 import { validateTaskId } from '../../validators/taskValidators.js';
-import { TaskCLIError, GitError } from '../../types/index.js';
+import { TaskCLIError } from '../../types/index.js';
 
 export function registerStartCommand(program: Command): void {
   program
@@ -25,10 +25,6 @@ export function registerStartCommand(program: Command): void {
         console.log(formatter.formatSuccess(msg));
         console.log(formatter.formatTaskDetail(task));
       } catch (err) {
-        if (err instanceof GitError) {
-          console.error(formatter.formatError(err.message));
-          process.exit(err.exitCode);
-        }
         if (err instanceof TaskCLIError) {
           console.error(formatter.formatError(err.message));
           process.exit(err.exitCode);

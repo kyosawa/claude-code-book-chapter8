@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { FileStorage } from '../../../src/storage/FileStorage.js';
+import { resolve, join } from 'path';
 
 vi.mock('fs/promises', () => ({
   mkdir: vi.fn().mockResolvedValue(undefined),
@@ -25,7 +25,13 @@ const mockFs = fsMock as {
   rm: ReturnType<typeof vi.fn>;
 };
 
-const emptyTasks = JSON.stringify({ tasks: [] });
+import { FileStorage } from '../../../src/storage/FileStorage.js';
+
+const BASE = resolve('.task-test');
+const TASKS_FILE = join(BASE, 'tasks.json');
+const CONFIG_FILE = join(BASE, 'config.json');
+const BACKUP_DIR = join(BASE, 'backup');
+
 const defaultConfig = JSON.stringify({
   version: '1.0.0',
   nextId: 1,
@@ -39,13 +45,12 @@ describe('FileStorage.initialize', () => {
 
   it('ディレクトリを作成する', async () => {
     mockFs.access.mockRejectedValue(new Error('ENOENT'));
-    mockFs.readFile.mockResolvedValue(emptyTasks);
 
     const storage = new FileStorage('.task-test');
     await storage.initialize();
 
-    expect(mockFs.mkdir).toHaveBeenCalledWith('.task-test', { recursive: true });
-    expect(mockFs.mkdir).toHaveBeenCalledWith('.task-test/backup', { recursive: true });
+    expect(mockFs.mkdir).toHaveBeenCalledWith(BASE, { recursive: true });
+    expect(mockFs.mkdir).toHaveBeenCalledWith(BACKUP_DIR, { recursive: true });
   });
 
   it('ファイルが存在しない場合は初期ファイルを作成する', async () => {
@@ -55,12 +60,12 @@ describe('FileStorage.initialize', () => {
     await storage.initialize();
 
     expect(mockFs.writeFile).toHaveBeenCalledWith(
-      '.task-test/tasks.json',
+      TASKS_FILE,
       JSON.stringify({ tasks: [] }, null, 2),
       'utf-8',
     );
     expect(mockFs.writeFile).toHaveBeenCalledWith(
-      '.task-test/config.json',
+      CONFIG_FILE,
       expect.any(String),
       'utf-8',
     );
@@ -73,6 +78,16 @@ describe('FileStorage.initialize', () => {
     await storage.initialize();
 
     expect(mockFs.writeFile).not.toHaveBeenCalled();
+  });
+
+  it('2回目の initialize() は早期リターンする（mkdir を再度呼ばない）', async () => {
+    mockFs.access.mockResolvedValue(undefined);
+
+    const storage = new FileStorage('.task-test');
+    await storage.initialize();
+    await storage.initialize();
+
+    expect(mockFs.mkdir).toHaveBeenCalledTimes(2); // 最初の1回分のみ
   });
 });
 
@@ -115,11 +130,11 @@ describe('FileStorage.writeTasks', () => {
     await storage.writeTasks([]);
 
     expect(mockFs.copyFile).toHaveBeenCalledWith(
-      '.task-test/tasks.json',
-      expect.stringContaining('.task-test/backup/tasks-'),
+      TASKS_FILE,
+      expect.stringContaining(BACKUP_DIR),
     );
     expect(mockFs.writeFile).toHaveBeenCalledWith(
-      '.task-test/tasks.json',
+      TASKS_FILE,
       JSON.stringify({ tasks: [] }, null, 2),
       'utf-8',
     );
@@ -134,7 +149,7 @@ describe('FileStorage.writeTasks', () => {
     await storage.writeTasks(tasks);
 
     expect(mockFs.writeFile).toHaveBeenCalledWith(
-      '.task-test/tasks.json',
+      TASKS_FILE,
       JSON.stringify({ tasks }, null, 2),
       'utf-8',
     );

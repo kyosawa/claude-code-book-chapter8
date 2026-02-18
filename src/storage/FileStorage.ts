@@ -1,5 +1,5 @@
 import { mkdir, readFile, writeFile, access, chmod } from 'fs/promises';
-import { join } from 'path';
+import { join, resolve } from 'path';
 import { Task, Config, IStorage } from '../types/index.js';
 import { BackupManager } from './BackupManager.js';
 
@@ -15,16 +15,18 @@ export class FileStorage implements IStorage {
   private configFile: string;
   private backupDir: string;
   private backupManager: BackupManager;
+  private initialized: boolean = false;
 
   constructor(baseDir: string = '.task') {
-    this.taskDir = baseDir;
-    this.tasksFile = join(baseDir, 'tasks.json');
-    this.configFile = join(baseDir, 'config.json');
-    this.backupDir = join(baseDir, 'backup');
+    this.taskDir = resolve(baseDir);
+    this.tasksFile = join(this.taskDir, 'tasks.json');
+    this.configFile = join(this.taskDir, 'config.json');
+    this.backupDir = join(this.taskDir, 'backup');
     this.backupManager = new BackupManager(this.backupDir);
   }
 
   async initialize(): Promise<void> {
+    if (this.initialized) return;
     await mkdir(this.taskDir, { recursive: true });
     await mkdir(this.backupDir, { recursive: true });
 
@@ -44,6 +46,8 @@ export class FileStorage implements IStorage {
     if (!configExists) {
       await this.writeJsonFile(this.configFile, DEFAULT_CONFIG);
     }
+
+    this.initialized = true;
   }
 
   async readTasks(): Promise<Task[]> {

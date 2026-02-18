@@ -45,3 +45,23 @@ export function validatePriority(priority: string): void {
     );
   }
 }
+
+export function validateStatus(status: string): void {
+  const valid = ['open', 'in_progress', 'completed', 'archived'];
+  if (!valid.includes(status)) {
+    throw new ValidationError(
+      `ステータスは open / in_progress / completed / archived のいずれかを指定してください`,
+      'status',
+    );
+  }
+}
+
+export function validateSortField(sort: string): void {
+  const valid = ['id', 'priority', 'dueDate', 'createdAt'];
+  if (!valid.includes(sort)) {
+    throw new ValidationError(
+      `ソートフィールドは id / priority / dueDate / createdAt のいずれかを指定してください`,
+      'sortBy',
+    );
+  }
+}

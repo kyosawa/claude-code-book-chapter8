@@ -53,8 +53,9 @@ export class GitManager {
       .replace(/[^\w\s-]/g, '')
       .replace(/[\s_]+/g, '-')
       .replace(/^-+|-+$/g, '')
-      .slice(0, 50);
+      .slice(0, 50)
+      .replace(/^-+|-+$/g, '');
 
-    return `${config}${task.id}-${slug}`;
+    return slug ? `${config}${task.id}-${slug}` : `${config}${task.id}`;
   }
 }

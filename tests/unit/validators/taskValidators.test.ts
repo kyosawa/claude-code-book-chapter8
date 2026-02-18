@@ -4,6 +4,8 @@ import {
   validateDueDate,
   validateTaskId,
   validatePriority,
+  validateStatus,
+  validateSortField,
 } from '../../../src/validators/taskValidators.js';
 import { ValidationError } from '../../../src/types/index.js';
 
@@ -100,5 +102,49 @@ describe('validateTaskId', () => {
 
   it('空文字は ValidationError をスロー', () => {
     expect(() => validateTaskId('')).toThrow(ValidationError);
+  });
+});
+
+describe('validateStatus', () => {
+  it('"open" は有効', () => {
+    expect(() => validateStatus('open')).not.toThrow();
+  });
+
+  it('"in_progress" は有効', () => {
+    expect(() => validateStatus('in_progress')).not.toThrow();
+  });
+
+  it('"completed" は有効', () => {
+    expect(() => validateStatus('completed')).not.toThrow();
+  });
+
+  it('"archived" は有効', () => {
+    expect(() => validateStatus('archived')).not.toThrow();
+  });
+
+  it('無効な値は ValidationError をスロー', () => {
+    expect(() => validateStatus('done')).toThrow(ValidationError);
+  });
+});
+
+describe('validateSortField', () => {
+  it('"id" は有効', () => {
+    expect(() => validateSortField('id')).not.toThrow();
+  });
+
+  it('"priority" は有効', () => {
+    expect(() => validateSortField('priority')).not.toThrow();
+  });
+
+  it('"dueDate" は有効', () => {
+    expect(() => validateSortField('dueDate')).not.toThrow();
+  });
+
+  it('"createdAt" は有効', () => {
+    expect(() => validateSortField('createdAt')).not.toThrow();
+  });
+
+  it('無効な値は ValidationError をスロー', () => {
+    expect(() => validateSortField('title')).toThrow(ValidationError);
   });
 });

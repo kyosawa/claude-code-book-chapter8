@@ -1,6 +1,5 @@
 import {
   Task,
-  TaskStatus,
   CreateTaskInput,
   UpdateTaskInput,
   TaskFilter,
@@ -143,7 +142,7 @@ export class TaskManager {
     const now = new Date().toISOString();
     const updated: Task = {
       ...task,
-      status: 'in_progress' as TaskStatus,
+      status: 'in_progress',
       ...(branchName !== undefined && { branch: branchName }),
       updatedAt: now,
     };
@@ -172,7 +171,7 @@ export class TaskManager {
     const now = new Date().toISOString();
     const updated: Task = {
       ...task,
-      status: 'completed' as TaskStatus,
+      status: 'completed',
       completedAt: now,
       updatedAt: now,
     };
@@ -200,7 +199,7 @@ export class TaskManager {
     const now = new Date().toISOString();
     const updated: Task = {
       ...task,
-      status: 'archived' as TaskStatus,
+      status: 'archived',
       updatedAt: now,
     };
 

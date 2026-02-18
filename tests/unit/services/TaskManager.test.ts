@@ -253,6 +253,12 @@ describe('TaskManager.completeTask', () => {
     const manager = new TaskManager(storage);
     await expect(manager.completeTask('1')).rejects.toThrow(ValidationError);
   });
+
+  it('存在しないIDは NotFoundError をスロー', async () => {
+    const storage = makeStorage();
+    const manager = new TaskManager(storage);
+    await expect(manager.completeTask('99')).rejects.toThrow(NotFoundError);
+  });
 });
 
 describe('TaskManager.archiveTask', () => {
