@@ -69,8 +69,9 @@ describe('Formatter.formatTaskList', () => {
   it('期限超過タスクの Due 列は ANSI 赤色コードを含む', () => {
     const tasks = [makeTask({ dueDate: '2000-01-01' })]; // 確実に過去の日付
     const result = formatter.formatTaskList(tasks);
-    // ANSI エスケープコード: chalk.red = \x1b[31m
-    expect(result).toMatch(/\x1b\[3[12]m/); // 赤系カラーコード
+    // chalk.red が ANSI エスケープコード \x1b[31m を出力することを確認
+    const ESC = String.fromCharCode(27);
+    expect(result).toContain(`${ESC}[31m`); // chalk.red
   });
 
   it('当日期限タスクの Due 列は ANSI 黄色コードを含む', () => {
@@ -78,8 +79,9 @@ describe('Formatter.formatTaskList', () => {
     const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     const tasks = [makeTask({ dueDate: dateStr })];
     const result = formatter.formatTaskList(tasks);
-    // chalk.yellow = \x1b[33m
-    expect(result).toMatch(/\x1b\[33m/);
+    // chalk.yellow が ANSI エスケープコード \x1b[33m を出力することを確認
+    const ESC = String.fromCharCode(27);
+    expect(result).toContain(`${ESC}[33m`); // chalk.yellow
   });
 
   it('将来の期限タスクの Due 列は日付と残日数を含む', () => {
