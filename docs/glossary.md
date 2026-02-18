@@ -21,8 +21,9 @@
 **定義**: ユーザーが完了すべき作業の単位。
 
 **説明**:
-TaskCLI が管理する基本データ。タイトル・説明・ステータス・優先度・期限・紐付きブランチを持つ。
+TaskCLI が管理する基本データ。タイトル・説明・ステータス・優先度・期限・紐付きブランチ・GitHub Issue番号（P1機能）を持つ。
 タスクは作成から完了・アーカイブまでのライフサイクルを持ち、Gitブランチと1対1で紐付けられる。
+GitHub Issues連携（P1機能）では `githubIssueNumber?: number` フィールドでIssue番号を管理する。
 
 **関連用語**:
 - [タスクステータス](#タスクステータス): タスクの進行状態
@@ -127,8 +128,8 @@ task start 1
 
 **変換ルール**:
 1. タイトルを小文字に変換
-2. 英数字・スペース・ハイフン以外の文字を除去（日本語・記号を除去）
-3. スペース・アンダースコアをハイフンに変換
+2. 特殊文字を除去: `/[^\w\s-]/g` で英数字・スペース・ハイフン以外を除去（日本語・記号を除去）
+3. スペース・アンダースコアをハイフンに変換: `/[\s_]+/g` でハイフンに置換
 4. 先頭・末尾のハイフンを除去
 5. 最大50文字に切り詰め
 
@@ -195,7 +196,7 @@ slug: "add-login-endpoint"
 
 **定義**: Node.js向けのCLIフレームワークライブラリ。サブコマンド・オプション・ヘルプ表示の自動生成を提供する。
 
-**本プロジェクトでの用途**: `task add` / `task list` / `task start` 等のサブコマンド定義と引数・オプションのパース。
+**本プロジェクトでの用途**: `task add` / `task list` / `task start` / `task archive` 等のサブコマンド定義と引数・オプションのパース。
 
 **バージョン**: ^12.0.0
 
@@ -325,14 +326,17 @@ slug: "add-login-endpoint"
 
 **定義**: システムを役割ごとに複数の層に分割し、上位層から下位層への一方向の依存関係を持たせる設計パターン。
 
-**本プロジェクトでの適用**: 3層構造を採用。
+**本プロジェクトでの適用**: 3レイヤー + 共有コンポーネント構成を採用。
 
 ```
-CLIレイヤー (src/cli/)        ← ユーザー入力・表示
+CLIレイヤー (src/cli/)            ← ユーザー入力・表示
+    ↓                   ↘
+サービスレイヤー (src/services/)   ← ビジネスロジック
     ↓
-サービスレイヤー (src/services/) ← ビジネスロジック
-    ↓
-ストレージレイヤー (src/storage/) ← データ永続化
+ストレージレイヤー (src/storage/)  ← データ永続化
+
+バリデーター (src/validators/)     ← CLIレイヤー・サービスレイヤーから参照
+共有型定義 (src/types/)            ← 全レイヤーから参照
 ```
 
 **メリット**: 関心の分離による保守性向上、各層を独立してテスト可能、変更の影響範囲が限定的。
@@ -340,6 +344,8 @@ CLIレイヤー (src/cli/)        ← ユーザー入力・表示
 **依存関係ルール**:
 - ✅ CLIレイヤー → サービスレイヤー
 - ✅ サービスレイヤー → ストレージレイヤー
+- ✅ CLIレイヤー・サービスレイヤー → バリデーター
+- ✅ 全レイヤー → 共有型定義（src/types/）
 - ❌ ストレージレイヤー → サービスレイヤー（禁止）
 - ❌ サービスレイヤー → CLIレイヤー（禁止）
 
@@ -407,6 +413,22 @@ interface IStorage {
 **責務**: タイムスタンプ付きバックアップファイルの作成、最新5件を超えた古いバックアップの自動削除。
 
 **実装箇所**: `src/storage/BackupManager.ts`
+
+---
+
+### Validators（TaskValidators）
+
+**定義**: ユーザー入力値の検証を担当する関数群のモジュール。CLIレイヤーとサービスレイヤーの両方から利用される共有コンポーネント。
+
+**責務**: タスクタイトルの文字数チェック（1〜200文字）、日付形式チェック（YYYY-MM-DD）、タスクID形式チェック（正の整数）、優先度値チェック（high/medium/low）。
+
+**実装箇所**: `src/validators/taskValidators.ts`
+
+**命名規則**: 関数名は `validate` プレフィックスを使用（例: `validateTitle`, `validateDueDate`）
+
+**カバレッジ目標**: 100%（境界値を全てカバー）
+
+**依存関係**: `src/types/` にのみ依存。`src/cli/`・`src/services/`・`src/storage/` への依存は禁止。
 
 ---
 
@@ -589,8 +611,9 @@ if (title.length === 0) {
 - [PAT](#pat)
 - [PRD](#prd)
 - [simple-git](#simple-git)
-- [TaskCLIError](#taskcliror)
+- [TaskCLIError](#taskcliierror)
 - [TaskManager](#taskmanager)
 - [TypeScript](#typescript)
 - [ValidationError](#validationerror)
+- [Validators（TaskValidators）](#validatorstaskvalidators)
 - [@octokit/rest](#octokitrest)
