@@ -136,6 +136,32 @@ describe('TaskManager.listTasks', () => {
     expect(result.map((t) => t.priority)).toEqual(['high', 'medium', 'low']);
   });
 
+  it('sortBy: priority で high > medium > low の順序が正しい', async () => {
+    const storage = makeStorage([
+      makeTask({ id: '1', priority: 'low' }),
+      makeTask({ id: '2', priority: 'high' }),
+      makeTask({ id: '3', priority: 'medium' }),
+    ]);
+    const m = new TaskManager(storage);
+    const result = await m.listTasks({ sortBy: 'priority' });
+    expect(result[0].priority).toBe('high');
+    expect(result[1].priority).toBe('medium');
+    expect(result[2].priority).toBe('low');
+  });
+
+  it('priority 未設定タスクが priority 指定タスクの後ろに並ぶ', async () => {
+    const storage = makeStorage([
+      makeTask({ id: '1' }), // priority undefined
+      makeTask({ id: '2', priority: 'low' }),
+      makeTask({ id: '3', priority: 'high' }),
+    ]);
+    const m = new TaskManager(storage);
+    const result = await m.listTasks({ sortBy: 'priority' });
+    expect(result[0].priority).toBe('high');
+    expect(result[1].priority).toBe('low');
+    expect(result[2].priority).toBeUndefined();
+  });
+
   it('sortBy: dueDate でソートされる（dueDateなしは末尾）', async () => {
     const storageDue = makeStorage([
       makeTask({ id: '1', dueDate: '2026-03-01' }),

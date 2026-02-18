@@ -43,6 +43,51 @@ describe('Formatter.formatTaskList', () => {
       expect(result).toContain(status);
     }
   });
+
+  it('40文字以内のタイトルは省略されない', () => {
+    const title = 'a'.repeat(40);
+    const tasks = [makeTask({ title })];
+    const result = formatter.formatTaskList(tasks);
+    expect(result).toContain(title);
+    expect(result).not.toContain('...');
+  });
+
+  it('41文字のタイトルは省略される', () => {
+    const title = 'a'.repeat(41);
+    const tasks = [makeTask({ title })];
+    const result = formatter.formatTaskList(tasks);
+    expect(result).toContain('...');
+    expect(result).not.toContain(title);
+  });
+
+  it('branch が未設定のとき Branch 列に "-" が表示される', () => {
+    const tasks = [makeTask({ branch: undefined })];
+    const result = formatter.formatTaskList(tasks);
+    expect(result).toContain('-');
+  });
+
+  it('期限超過タスクの Due 列は ANSI 赤色コードを含む', () => {
+    const tasks = [makeTask({ dueDate: '2000-01-01' })]; // 確実に過去の日付
+    const result = formatter.formatTaskList(tasks);
+    // ANSI エスケープコード: chalk.red = \x1b[31m
+    expect(result).toMatch(/\x1b\[3[12]m/); // 赤系カラーコード
+  });
+
+  it('当日期限タスクの Due 列は ANSI 黄色コードを含む', () => {
+    const today = new Date();
+    const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const tasks = [makeTask({ dueDate: dateStr })];
+    const result = formatter.formatTaskList(tasks);
+    // chalk.yellow = \x1b[33m
+    expect(result).toMatch(/\x1b\[33m/);
+  });
+
+  it('将来の期限タスクの Due 列は日付と残日数を含む', () => {
+    const tasks = [makeTask({ dueDate: '2099-12-31' })];
+    const result = formatter.formatTaskList(tasks);
+    expect(result).toContain('2099-12-31');
+    expect(result).toContain('あと');
+  });
 });
 
 describe('Formatter.formatTaskDetail', () => {
