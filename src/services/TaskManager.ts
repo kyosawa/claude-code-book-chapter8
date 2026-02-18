@@ -149,12 +149,7 @@ export class TaskManager {
     };
 
     tasks[index] = updated;
-    try {
-      await this.storage.writeTasks(tasks);
-    } catch (err) {
-      // ストレージ書き込み失敗時はステータス変更をロールバック（ブランチは残る）
-      throw err;
-    }
+    await this.storage.writeTasks(tasks);
 
     return updated;
   }
