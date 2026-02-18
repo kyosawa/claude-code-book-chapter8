@@ -163,7 +163,7 @@ class TaskManager {
   completeTask(id: string): Promise<Task>;     // status → completed
   archiveTask(id: string): Promise<Task>;      // status → archived
   deleteTask(id: string): Promise<void>;
-  searchTasks(keyword: string): Promise<Task[]>;
+  searchTasks(keyword: string): Promise<Task[]>;  // P1フェーズで実装予定
 }
 
 interface CreateTaskInput {
